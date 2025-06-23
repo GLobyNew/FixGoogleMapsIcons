@@ -7,10 +7,11 @@
 *.dll
 *.so
 *.dylib
-
+FixGoogleMapsIcons
 # Test binary, built with `go test -c`
 *.test
-
+*.kmz
+*.kml
 # Code coverage profiles and other test artifacts
 *.out
 coverage.*
