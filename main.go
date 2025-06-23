@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io/ioutil"
 	"os"
+	"sort"
 	"strings"
 )
 
@@ -162,21 +163,82 @@ var newStyles = []Style{
 	},
 }
 
-// Create mapping from old style patterns to new style IDs
-func createStyleMapping() map[string]string {
-	// Map old style patterns to new styles based on color
-	// This mapping is based on the color codes in the original styles
-	return map[string]string{
-		"0288D1": "placemark-blue",      // Blue
-		"0097A7": "placemark-cyan",      // Cyan
-		"097138": "placemark-teal",      // Teal/Dark Green
-		"558B2F": "placemark-green",     // Green
-		"673AB7": "placemark-purple",    // Purple
-		"795548": "placemark-brown",     // Brown
-		"880E4F": "placemark-deeppurple", // Deep Purple/Pink
-		"F9A825": "placemark-yellow",    // Yellow
-		"FF5252": "placemark-red",       // Red
+// Define the order of colors to use
+var colorOrder = []string{
+	"placemark-blue",
+	"placemark-cyan",
+	"placemark-teal",
+	"placemark-lime",
+	"placemark-green",
+	"placemark-yellow",
+	"placemark-orange",
+	"placemark-deeporange",
+	"placemark-red",
+	"placemark-pink",
+	"placemark-purple",
+	"placemark-deeppurple",
+	"placemark-brown",
+	"placemark-gray",
+	"placemark-bluegray",
+	"placemark-lightblue",
+}
+
+// Extract unique color codes from style IDs
+func extractColorCodes(styles []Style, styleMaps []StyleMap) []string {
+	colorCodes := make(map[string]bool)
+	
+	// Extract from regular styles
+	for _, style := range styles {
+		// Extract color code from style ID (e.g., "icon-1602-0288D1-normal" -> "0288D1")
+		parts := strings.Split(style.ID, "-")
+		for _, part := range parts {
+			if len(part) == 6 && isHexColor(part) {
+				colorCodes[part] = true
+			}
+		}
 	}
+	
+	// Extract from style maps
+	for _, styleMap := range styleMaps {
+		// Extract color code from style map ID
+		parts := strings.Split(styleMap.ID, "-")
+		for _, part := range parts {
+			if len(part) == 6 && isHexColor(part) {
+				colorCodes[part] = true
+			}
+		}
+	}
+	
+	// Convert to slice
+	result := make([]string, 0, len(colorCodes))
+	for code := range colorCodes {
+		result = append(result, code)
+	}
+	
+	// Sort for consistent ordering
+	sort.Strings(result)
+	return result
+}
+
+func isHexColor(s string) bool {
+	for _, c := range s {
+		if !((c >= '0' && c <= '9') || (c >= 'A' && c <= 'F') || (c >= 'a' && c <= 'f')) {
+			return false
+		}
+	}
+	return true
+}
+
+func createSequentialMapping(colorCodes []string) map[string]string {
+	mapping := make(map[string]string)
+	
+	for i, code := range colorCodes {
+		// Use modulo to cycle through colors if we have more codes than colors
+		colorIndex := i % len(colorOrder)
+		mapping[code] = colorOrder[colorIndex]
+	}
+	
+	return mapping
 }
 
 func findNewStyleForOld(oldStyleID string, colorMapping map[string]string) string {
@@ -228,8 +290,16 @@ func main() {
 		os.Exit(1)
 	}
 
-	// Create color mapping
-	colorMapping := createStyleMapping()
+	// Extract unique color codes from the original styles
+	colorCodes := extractColorCodes(kml.Document.Styles, kml.Document.StyleMaps)
+	
+	// Create sequential color mapping
+	colorMapping := createSequentialMapping(colorCodes)
+	
+	fmt.Println("Color mapping:")
+	for code, color := range colorMapping {
+		fmt.Printf("  %s -> %s\n", code, color)
+	}
 	
 	// Build style mapping from old StyleMap IDs to new style IDs
 	styleMapping := make(map[string]string)
